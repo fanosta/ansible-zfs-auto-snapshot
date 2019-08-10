@@ -33,15 +33,18 @@
     owner: root
     group: root
 
+- name: Set PATH for cron tab
+  cron:
+    env: yes
+    name: PATH
+    value: "/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
+
 - name: Set up hourly/daily/weekly/monthly cron job
   cron:
     special_time: "{{ item.label }}"
     job: "{{ zfs_autosnap_bin }} {{ zfs_autosnap_args }} --label={{ item.label }} --keep={{ item.keep }} //"
-    user: root
-    env: yes
-    name: PATH
-    value: "/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
-  with_items:
+    name: "zfs-auto-snapshot-{{ item.label }}"
+  loop:
     - { label: hourly,  keep: "{{ zfs_autosnap_keep_hourly }}" }
     - { label: daily,   keep: "{{ zfs_autosnap_keep_daily }}" }
     - { label: weekly,  keep: "{{ zfs_autosnap_keep_weekly }}" }
@@ -51,11 +54,6 @@
   cron:
     minute: "*/{{ zfs_autosnap_keep_frequent_interval }}"
     job: "{{ zfs_autosnap_bin }} {{ zfs_autosnap_args }} --label=frequent --keep={{ zfs_autosnap_keep_frequent }} //"
-    user: root
-    cron_file: ansible_zfs-auto-snapshot-frequent
-    env: yes
-    name: PATH
-    value: "/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
 
 - name: Update ZFS properties
   zfs:
@@ -66,4 +64,4 @@
     "com.sun:auto-snapshot:daily": "{{ item.value.daily | default(zfs_autosnap_default_daily) | lower }}"
     "com.sun:auto-snapshot:weekly": "{{ item.value.weekly | default(zfs_autosnap_default_weekly) | lower }}"
     "com.sun:auto-snapshot:monthly": "{{ item.value.monthly | default(zfs_autosnap_default_monthly) | lower }}"
-  with_dict: "{{ zfs_autosnap_datasets }}"
+  loop: "{{ zfs_autosnap_datasets | dict2items }}"
